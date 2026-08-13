@@ -1,0 +1,114 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osr-updater-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install runtime and test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes python3-pip python3-tk ripgrep
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 10)'
+          python3 -c 'import tkinter; assert tkinter.TkVersion >= 8.6'
+          python3 -m pip install --disable-pip-version-check .
+
+      - name: Compile Python sources
+        run: |
+          set -euo pipefail
+          export PYTHONPYCACHEPREFIX="${RUNNER_TEMP}/osr-updater-pycache"
+          python3 -m compileall -q osr_updater tests
+
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Enforce product boundaries
+        run: |
+          set -euo pipefail
+          test ! -e osr_updater/cli.py
+          test ! -e osr_updater/web.py
+          test ! -d osr_updater/resources
+          ! find . -type f \( -name '*.bin' -o -name '*.hex' \) -print -quit | grep -q .
+          ! rg -n --hidden --glob '!.git/**' --glob '!.github/workflows/quality.yml' \
+            'NEORACER|ProfileID red|B01|B02|customer bundle|internal task|OSR-[0-9]{8}|OSRF-C03-T[0-9]+' .
+
+  linux-arm64-package:
+    name: Linux arm64 desktop package
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install native build requirements
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes python3.10 python3.10-tk python3.10-venv
+          python3.10 -c 'import sys; assert sys.version_info[:2] == (3, 10)'
+          python3.10 -c 'import tkinter; assert tkinter.TkVersion >= 8.6'
+
+      - name: Build and verify the Debian package
+        run: |
+          set -euo pipefail
+          OSR_UPDATER_PYTHON=python3.10 ./build.sh
+          cd dist/osr-updater
+          sha256sum --check osr-updater_1.0.0_arm64.deb.sha256
+          test "$(dpkg-deb --field osr-updater_1.0.0_arm64.deb Architecture)" = arm64
+          package_contents="${RUNNER_TEMP}/osr-updater-package-contents.txt"
+          dpkg-deb --contents osr-updater_1.0.0_arm64.deb > "${package_contents}"
+          grep -q './usr/bin/osr-updater' "${package_contents}"
+          grep -q './usr/share/doc/osr-updater/licenses/' "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/osr-updater-1.0.0.tar.gz' \
+            "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/esptool-5.3.1.tar.gz' \
+            "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/pyinstaller-6.22.0.tar.gz' \
+            "${package_contents}"
+          grep -q './usr/share/doc/osr-updater/BUILD_INFO.json' "${package_contents}"
+          ! grep -E '\.(bin|hex)$' "${package_contents}"
+          mkdir "${RUNNER_TEMP}/osr-updater-package"
+          dpkg-deb --extract osr-updater_1.0.0_arm64.deb \
+            "${RUNNER_TEMP}/osr-updater-package"
+          cd "${RUNNER_TEMP}/osr-updater-package/usr/share/doc/osr-updater/source"
+          sha256sum --check SHA256SUMS
+          cd "${GITHUB_WORKSPACE}/dist/osr-updater"
+          OSR_UPDATER_SELF_TEST=1 \
+            "${RUNNER_TEMP}/osr-updater-package/usr/bin/osr-updater"
+
+      - name: Store the verified package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: osr-updater-1.0.0-linux-arm64
+          path: |
+            dist/osr-updater/osr-updater_1.0.0_arm64.deb
+            dist/osr-updater/osr-updater_1.0.0_arm64.deb.sha256
+          if-no-files-found: error
+          retention-days: 7
