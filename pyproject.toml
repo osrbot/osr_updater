@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "osr-updater"
+version = "1.0.0"
+description = "Native ESP32-S3 firmware installation and recovery utility for OSRBOT vehicle controllers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Zhihao ZHANG"},
+  {name = "Kit So"},
+  {name = "Jintai WANG"},
+  {name = "dajianli", email = "winter@osrbot.com"},
+]
+dependencies = [
+  "esptool==5.3.1",
+  "pyserial==3.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/osrbot/osr_updater"
+Issues = "https://github.com/osrbot/osr_updater/issues"
+
+[tool.setuptools]
+packages = ["osr_updater"]
+include-package-data = false

@@ -1,0 +1,12 @@
+Package: osr-updater
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: arm64
+Maintainer: OSRBOT <winter@osrbot.com>
+Depends: libc6 (>= 2.35), libfontconfig1, libx11-6, libxext6, libxft2, libxrender1
+Homepage: https://github.com/osrbot/osr_updater
+License: GPL-2.0-or-later
+Description: Native ESP32-S3 firmware updater for OSRBOT vehicle controllers
+ OSR Updater installs firmware files supplied by OSRBOT, preserves vehicle
+ settings during supported updates, and provides a guarded recovery workflow.

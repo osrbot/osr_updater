@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=OSR Updater
+Name[zh_CN]=OSR Updater
+Comment=ESP32-S3 firmware installation and controller recovery
+Comment[zh_CN]=ESP32-S3 固件安装与控制器恢复
+Exec=/usr/bin/osr-updater
+Icon=osr-updater
+Terminal=false
+Categories=Utility;System;
+StartupNotify=true
