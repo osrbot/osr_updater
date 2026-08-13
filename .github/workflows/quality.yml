@@ -79,20 +79,21 @@ jobs:
           cd dist/osr-updater
           sha256sum --check osr-updater_1.0.0_arm64.deb.sha256
           test "$(dpkg-deb --field osr-updater_1.0.0_arm64.deb Architecture)" = arm64
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/bin/osr-updater'
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/share/doc/osr-updater/licenses/'
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/share/doc/osr-updater/source/osr-updater-1.0.0.tar.gz'
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/share/doc/osr-updater/source/esptool-5.3.1.tar.gz'
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/share/doc/osr-updater/source/pyinstaller-6.22.0.tar.gz'
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -q './usr/share/doc/osr-updater/BUILD_INFO.json'
-          ! dpkg-deb --contents osr-updater_1.0.0_arm64.deb |
-            grep -E '\.(bin|hex)$'
+          package_contents="${RUNNER_TEMP}/osr-updater-package-contents.txt"
+          dpkg-deb --contents osr-updater_1.0.0_arm64.deb > "${package_contents}"
+          grep -q './usr/bin/osr-updater' "${package_contents}"
+          grep -q './usr/share/doc/osr-updater/licenses/' "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/osr-updater-1.0.0.tar.gz' \
+            "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/esptool-5.3.1.tar.gz' \
+            "${package_contents}"
+          grep -q \
+            './usr/share/doc/osr-updater/source/pyinstaller-6.22.0.tar.gz' \
+            "${package_contents}"
+          grep -q './usr/share/doc/osr-updater/BUILD_INFO.json' "${package_contents}"
+          ! grep -E '\.(bin|hex)$' "${package_contents}"
           mkdir "${RUNNER_TEMP}/osr-updater-package"
           dpkg-deb --extract osr-updater_1.0.0_arm64.deb \
             "${RUNNER_TEMP}/osr-updater-package"
