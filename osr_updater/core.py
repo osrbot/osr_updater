@@ -1105,11 +1105,32 @@ def _serial_device_in_use(port: str) -> bool:
     return False
 
 
+def _claim_kernel_tty_exclusive(connection: SerialConnection) -> None:
+    """Prevent non-cooperating Linux processes from opening this TTY later."""
+
+    if not sys.platform.startswith("linux"):
+        return
+    fileno = getattr(connection, "fileno", None)
+    if not callable(fileno):
+        return
+    try:
+        import fcntl
+        import termios
+
+        descriptor = fileno()
+        fcntl.ioctl(descriptor, termios.TIOCEXCL)
+    except (AttributeError, OSError, TypeError, ValueError):
+        raise SerialUnavailableError(
+            "could not reserve the serial port exclusively; stop chassis and other serial tools, then retry"
+        ) from None
+
+
 def _open_exclusive(
     config: UpdateConfig,
     serial_factory: SerialFactory,
     *,
     in_use_check: Callable[[str], bool] = _serial_device_in_use,
+    kernel_claim: Callable[[SerialConnection], None] = _claim_kernel_tty_exclusive,
 ) -> SerialConnection:
     if in_use_check(config.port):
         raise SerialUnavailableError(
@@ -1126,6 +1147,7 @@ def _open_exclusive(
         )
         if not getattr(connection, "is_open", True):
             raise OSError("closed")
+        kernel_claim(connection)
         if in_use_check(config.port):
             raise OSError("serial port became busy")
         connection.reset_input_buffer()

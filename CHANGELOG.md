@@ -2,6 +2,17 @@
 
 All notable user-visible changes to OSR Updater are documented in this file.
 
+## [Unreleased]
+
+## [1.0.1] - 2026-08-18
+
+### Fixed
+
+- Reports when ROS or another program is using the selected controller port
+  before a firmware operation starts.
+- Does not report a managed application update as successful unless the target
+  controller reaches its `READY` runtime state.
+
 ## [1.0.0] - 2026-08-13
 
 ### Changed
@@ -66,4 +77,5 @@ All notable user-visible changes to OSR Updater are documented in this file.
   owner-only permissions.
 - Uncertain write outcomes fail closed and preserve recovery evidence.
 
+[1.0.1]: https://github.com/osrbot/osr_updater/releases/tag/v1.0.1
 [1.0.0]: https://github.com/osrbot/osr_updater/releases/tag/v1.0.0

@@ -21,6 +21,7 @@ except ImportError:  # pragma: no cover - exercised by packaging prerequisite ch
 
 from . import __version__
 from .build_info import load_build_info, load_third_party_notices
+from .core import SerialUnavailableError
 from .operations import (
     BackupChoice,
     ErasePreparation,
@@ -63,6 +64,16 @@ def failure_guidance_key(error: BaseException, details: dict[str, Any]) -> str:
     if details.get("retry_app_update") is True:
         return "guidance_retry_allowed"
     return "guidance_contact_support"
+
+
+def failure_detail(language: str, operation: str, error: BaseException) -> str:
+    """Return the direct operator-facing reason for an operation failure."""
+
+    if isinstance(error, SerialUnavailableError):
+        return text(language, "error_serial_in_use")
+    if operation == "inspect":
+        return text(language, "inspect_unavailable_detail")
+    return str(error)
 
 
 class UpdaterApp:
@@ -780,11 +791,11 @@ class UpdaterApp:
             )
             if audit_path:
                 self._set_audit_path(str(audit_path))
-            if name == "inspect":
+            serial_in_use = isinstance(error, SerialUnavailableError)
+            if name == "inspect" and not serial_in_use:
                 self._clear_device_display("device_unavailable")
-                detail = text(self.language, "inspect_unavailable_detail")
-            else:
-                detail = str(error)
+            detail = failure_detail(self.language, name, error)
+            if name != "inspect" and not serial_in_use:
                 detail += (
                     f"\n\n{text(self.language, failure_guidance_key(error, self.last_failure_details))}"
                 )

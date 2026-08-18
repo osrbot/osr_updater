@@ -236,6 +236,33 @@ class UpdaterOperationTest(unittest.TestCase):
         self.assertEqual(result.status, "success")
         self.assertIsNone(result.logical_backup)
         self.assertIsNone(result.raw_nvs_backup)
+        self.assertIn("target startup was verified", result.message)
+
+    def test_managed_target_must_reach_ready_before_success(self):
+        writes: list[str] = []
+        service = self._service(
+            [
+                FakeSerial(managed_handler(SOURCE_VERSION), writes),
+                FakeSerial(
+                    managed_handler(
+                        TARGET_VERSION,
+                        post_profile_state="UNCLAIMED",
+                        export_error=True,
+                    ),
+                    writes,
+                ),
+            ]
+        )
+
+        result = service.install_application(
+            self.app_path,
+            confirmation="INSTALL FIRMWARE",
+        )
+
+        self.assertEqual(result.status, "completed_unverified")
+        self.assertEqual(result.post_project_version, TARGET_VERSION)
+        self.assertIn("profile_unclaimed", result.post_verification)
+        self.assertFalse(result.retry_app_update)
 
     def test_custom_application_parameter_change_is_diagnostic_not_a_write_failure(self):
         writes: list[str] = []

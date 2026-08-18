@@ -77,14 +77,14 @@ jobs:
           set -euo pipefail
           OSR_UPDATER_PYTHON=python3.10 ./build.sh
           cd dist/osr-updater
-          sha256sum --check osr-updater_1.0.0_arm64.deb.sha256
-          test "$(dpkg-deb --field osr-updater_1.0.0_arm64.deb Architecture)" = arm64
+          sha256sum --check osr-updater_1.0.1_arm64.deb.sha256
+          test "$(dpkg-deb --field osr-updater_1.0.1_arm64.deb Architecture)" = arm64
           package_contents="${RUNNER_TEMP}/osr-updater-package-contents.txt"
-          dpkg-deb --contents osr-updater_1.0.0_arm64.deb > "${package_contents}"
+          dpkg-deb --contents osr-updater_1.0.1_arm64.deb > "${package_contents}"
           grep -q './usr/bin/osr-updater' "${package_contents}"
           grep -q './usr/share/doc/osr-updater/licenses/' "${package_contents}"
           grep -q \
-            './usr/share/doc/osr-updater/source/osr-updater-1.0.0.tar.gz' \
+            './usr/share/doc/osr-updater/source/osr-updater-1.0.1.tar.gz' \
             "${package_contents}"
           grep -q \
             './usr/share/doc/osr-updater/source/esptool-5.3.1.tar.gz' \
@@ -95,7 +95,7 @@ jobs:
           grep -q './usr/share/doc/osr-updater/BUILD_INFO.json' "${package_contents}"
           ! grep -E '\.(bin|hex)$' "${package_contents}"
           mkdir "${RUNNER_TEMP}/osr-updater-package"
-          dpkg-deb --extract osr-updater_1.0.0_arm64.deb \
+          dpkg-deb --extract osr-updater_1.0.1_arm64.deb \
             "${RUNNER_TEMP}/osr-updater-package"
           cd "${RUNNER_TEMP}/osr-updater-package/usr/share/doc/osr-updater/source"
           sha256sum --check SHA256SUMS
@@ -106,9 +106,9 @@ jobs:
       - name: Store the verified package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
-          name: osr-updater-1.0.0-linux-arm64
+          name: osr-updater-1.0.1-linux-arm64
           path: |
-            dist/osr-updater/osr-updater_1.0.0_arm64.deb
-            dist/osr-updater/osr-updater_1.0.0_arm64.deb.sha256
+            dist/osr-updater/osr-updater_1.0.1_arm64.deb
+            dist/osr-updater/osr-updater_1.0.1_arm64.deb.sha256
           if-no-files-found: error
           retention-days: 7
