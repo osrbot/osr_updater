@@ -8,6 +8,7 @@ import json
 import os
 import stat
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -113,6 +114,81 @@ class FakeSerial:
 
 
 class CurrentEngineContractTest(unittest.TestCase):
+    def test_serial_open_reports_existing_owner_before_touching_port(self):
+        opened = False
+
+        def factory(**_kwargs):
+            nonlocal opened
+            opened = True
+            return FakeSerial()
+
+        with self.assertRaises(core.SerialUnavailableError) as caught:
+            core._open_exclusive(
+                core.UpdateConfig(port="/dev/test-controller"),
+                factory,
+                in_use_check=lambda _port: True,
+            )
+
+        self.assertFalse(opened)
+        self.assertIn("already open by another process", str(caught.exception))
+
+    def test_serial_open_claims_kernel_exclusive_before_final_owner_check(self):
+        events: list[str] = []
+        connection = FakeSerial()
+
+        def owner_check(_port: str) -> bool:
+            events.append("check")
+            return False
+
+        def factory(**_kwargs):
+            events.append("open")
+            return connection
+
+        def kernel_claim(opened) -> None:
+            self.assertIs(opened, connection)
+            events.append("claim")
+
+        result = core._open_exclusive(
+            core.UpdateConfig(port="/dev/test-controller"),
+            factory,
+            in_use_check=owner_check,
+            kernel_claim=kernel_claim,
+        )
+
+        self.assertIs(result, connection)
+        self.assertEqual(events, ["check", "open", "claim", "check"])
+
+    def test_serial_open_closes_if_an_owner_appears_during_claim(self):
+        checks = iter((False, True))
+        connection = FakeSerial()
+
+        with self.assertRaises(core.SerialUnavailableError):
+            core._open_exclusive(
+                core.UpdateConfig(port="/dev/test-controller"),
+                lambda **_kwargs: connection,
+                in_use_check=lambda _port: next(checks),
+                kernel_claim=lambda _connection: None,
+            )
+
+        self.assertFalse(connection.is_open)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux TTY contract")
+    def test_linux_kernel_exclusive_rejects_a_second_tty_open(self):
+        master, slave = os.openpty()
+        path = os.ttyname(slave)
+
+        class Connection:
+            def fileno(self) -> int:
+                return slave
+
+        try:
+            core._claim_kernel_tty_exclusive(Connection())
+            with self.assertRaises(OSError):
+                os.open(path, os.O_RDWR | os.O_NOCTTY)
+        finally:
+            os.close(slave)
+            os.close(master)
+
     def test_export_parser_matches_independent_hash_and_accepts_uppercase_blob(self):
         items = ready_items()
         exported = core.parse_vehicle_config_export_lines(export_lines(items))

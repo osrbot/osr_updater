@@ -910,6 +910,21 @@ class UpdaterService:
                 post_version = None if post is None else post.project_version
                 if connection is None:
                     identity_verification = "not_supported_by_running_firmware"
+                runtime_verification = "not_available"
+                runtime_ready = post is not None
+                if post is not None and post.profile_state is not None:
+                    runtime_ready = (
+                        post.profile_state == "READY"
+                        and post.motion_ok is True
+                        and post.writes_ok is True
+                    )
+                    runtime_verification = (
+                        "ready"
+                        if runtime_ready
+                        else f"profile_{post.profile_state.lower()}"
+                    )
+                elif post is not None:
+                    runtime_verification = "profile_status_not_supported"
                 settings_verification = "not_available"
                 settings_match = True
                 if connection is not None and backup is not None:
@@ -939,17 +954,31 @@ class UpdaterService:
                             ),
                             reason=type(verification_error).__name__,
                         )
-                verification = f"{identity_verification}; {settings_verification}"
+                verification = (
+                    f"{identity_verification}; {runtime_verification}; "
+                    f"{settings_verification}"
+                )
                 verified = (
                     identity_verification == "selected_identity_matched"
+                    and runtime_ready
                     and settings_match
                 )
+                if verified and backup is None:
+                    success_message = (
+                        "Application update completed; the NVS partition was preserved "
+                        "and target startup was verified"
+                    )
+                else:
+                    success_message = (
+                        "Application update completed; NVS was preserved and available "
+                        "settings checks passed"
+                    )
                 result = OperationResult(
                     "success" if verified else "completed_unverified",
                     "application_update",
                     audit.path,
                     (
-                        "Application update completed; NVS was preserved and available settings checks passed"
+                        success_message
                         if verified
                         else "Application transfer completed, but startup or optional settings checks were not verified; do not repeat the App write"
                     ),

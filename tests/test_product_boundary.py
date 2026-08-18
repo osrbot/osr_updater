@@ -10,7 +10,7 @@ from pathlib import Path
 
 from osr_updater import core
 from osr_updater import __version__
-from osr_updater.gui import failure_guidance_key
+from osr_updater.gui import failure_detail, failure_guidance_key
 from osr_updater.storage import (
     default_state_directory,
     list_raw_nvs_backups,
@@ -27,6 +27,19 @@ PACKAGE_ROOT = PROJECT_ROOT / "osr_updater"
 
 
 class ProductBoundaryTest(unittest.TestCase):
+    def test_serial_owner_error_has_direct_bilingual_guidance(self):
+        error = core.SerialUnavailableError("internal detail")
+
+        self.assertEqual(
+            failure_detail("en", "install_application", error),
+            "The selected serial port is in use by ROS or another program. "
+            "Stop the program using the controller, then try again.",
+        )
+        self.assertEqual(
+            failure_detail("zh", "install_application", error),
+            "所选串口正被 ROS 或其他程序占用。请先停止占用控制器串口的程序，然后重试。",
+        )
+
     def test_one_native_bilingual_interface_has_no_web_or_user_cli(self):
         self.assertEqual(set(TEXT), {"en", "zh"})
         self.assertEqual(text("en", "product_name"), "OSR Updater")
